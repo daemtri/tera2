@@ -15,6 +15,7 @@ hashbrown = { version = "0.14", optional = true }
 itoa = { version = "1.0.9", optional = true }
 ryu = { version = "1.0.15", optional = true }
 pulldown-cmark-escape = { version = "0.10", optional = true}
+chrono = "0.4.38"
 
 [features]
 default = []

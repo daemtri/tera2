@@ -2,10 +2,12 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::sync::Arc;
 
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
+
 use crate::args::{ArgFromValue, Kwargs};
 use crate::errors::{Error, TeraResult};
 use crate::value::number::Number;
-use crate::value::{FunctionResult, Key, Map};
+use crate::value::{FunctionResult, Key, Map, StringKind};
 use crate::vm::state::State;
 use crate::{HashMap, Value};
 
@@ -479,6 +481,64 @@ pub(crate) fn group_by(val: Vec<Value>, kwargs: Kwargs, _: &State) -> TeraResult
     }
 
     Ok(grouped.into_iter().map(|(k, v)| (k, v.into())).collect())
+}
+
+pub(crate) fn date(value: Value, kwargs: Kwargs, _: &State) -> TeraResult<String> {
+    let format = match kwargs.get("format") {
+        Ok(Some(val)) => val,
+        Ok(None) => "%Y-%m-%d",
+        Err(err) => return Err(err),
+    };
+
+    let formatted = match value {
+        Value::I64(n) => {
+            let date = DateTime::from_timestamp(n, 0)
+                .expect("out of bound seconds should not appear, as we set nanoseconds to zero");
+            date.format(&format)
+        }
+        Value::String(s, _) => {
+            if s.contains('T') {
+                match s.parse::<DateTime<FixedOffset>>() {
+                    Ok(val) => val.format(&format),
+                    Err(_) => match s.parse::<NaiveDateTime>() {
+                        Ok(val) => {
+                            DateTime::<Utc>::from_naive_utc_and_offset(val, Utc).format(&format)
+                        }
+                        Err(_) => {
+                            return Err(Error::message(format!(
+                                "Error parsing `{:?}` as rfc3339 date or naive datetime",
+                                s
+                            )));
+                        }
+                    },
+                }
+            } else {
+                match NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+                    Ok(val) => DateTime::<Utc>::from_naive_utc_and_offset(
+                        val.and_hms_opt(0, 0, 0)
+                            .expect("out of bound should not appear, as we set the time to zero"),
+                        Utc,
+                    )
+                    .format(&format),
+                    Err(_) => {
+                        return Err(Error::message(format!(
+                            "Error parsing `{:?}` as YYYY-MM-DD date",
+                            s
+                        )));
+                    }
+                }
+            }
+        }
+        _ => {
+            return Err(Error::message(format!(
+                "Filter `date` received an incorrect type for arg `value`: \
+                 got `{:?}` but expected i64|u64|String",
+                value
+            )));
+        }
+    };
+
+    Ok(formatted.to_string())
 }
 
 // TODO: missing from array sort

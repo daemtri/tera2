@@ -1,12 +1,12 @@
 use crate::args::ArgFromValue;
 use crate::errors::{Error, TeraResult};
 use crate::filters::{Filter, StoredFilter};
+use crate::functions::{Function, StoredFunction};
 use crate::template::{find_parents, Template};
 use crate::tests::{StoredTest, Test, TestResult};
 use crate::value::FunctionResult;
 use crate::vm::interpreter::VirtualMachine;
 use crate::{escape_html, Context, HashMap};
-use crate::functions::{Function, StoredFunction};
 
 /// Default template name used for `Tera::render_str` and `Tera::one_off`.
 const ONE_OFF_TEMPLATE_NAME: &str = "__tera_one_off";
@@ -137,9 +137,9 @@ impl Tera {
     ///
     /// If a function with that name already exists, it will be overwritten
     pub fn register_function<Func, Res>(&mut self, name: &'static str, func: Func)
-        where
-            Func: Function<Res>,
-            Res: FunctionResult,
+    where
+        Func: Function<Res>,
+        Res: FunctionResult,
     {
         self.functions.insert(name, StoredFunction::new(func));
     }
@@ -173,6 +173,7 @@ impl Tera {
         self.register_filter("map", crate::filters::map);
         self.register_filter("filter", crate::filters::filter);
         self.register_filter("group_by", crate::filters::group_by);
+        self.register_filter("date", crate::filters::date);
     }
 
     fn register_builtin_tests(&mut self) {
